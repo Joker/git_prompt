@@ -1,9 +1,78 @@
 #![deny(warnings)]
 
 use git2::{Repository, StatusOptions};
-use std::fmt;
+// use std::str;
+// use std::fmt;
 
-fn count_stash(mrepo: &mut Repository) -> usize {
+fn print_branch(repo: &Repository) {
+	let head = match repo.head() {
+		Ok(head) => Some(head),
+		// Err(ref e) if e.code() == ErrorCode::UnbornBranch || e.code() == ErrorCode::NotFound => {
+		// 	None
+		// }
+		Err(e) => {
+			println!("{:?}", e);
+			None
+		}
+	};
+	let head = head.as_ref().and_then(|h| h.shorthand());
+
+	print!("\x1b[0;35m({}", head.unwrap_or("HEAD (no branch)"));
+
+	let sub = repo.submodules().unwrap().len();
+	if sub > 0 {
+		print!("\x1b[0;33m sub-{}\x1b[0;35m) ", sub);
+	} else {
+		print!("\x1b[0;35m) ");
+	}
+}
+
+fn print_count(statuses: &git2::Statuses) {
+	let mut ix = 0;
+	let mut wt = 0;
+	let mut ignr = 0;
+	let mut ups = 0;
+	let mut unt = 0;
+
+	for entry in statuses
+		.iter()
+		.filter(|e| e.status() != git2::Status::CURRENT)
+	{
+		match entry.status() {
+			s if s.contains(git2::Status::WT_NEW) => unt += 1,
+
+			s if s.contains(git2::Status::WT_MODIFIED) => wt += 1,
+			s if s.contains(git2::Status::WT_DELETED) => wt += 1,
+			s if s.contains(git2::Status::WT_TYPECHANGE) => wt += 1,
+			s if s.contains(git2::Status::WT_RENAMED) => wt += 1,
+
+			s if s.contains(git2::Status::INDEX_NEW) => ix += 1,
+			s if s.contains(git2::Status::INDEX_MODIFIED) => ix += 1,
+			s if s.contains(git2::Status::INDEX_DELETED) => ix += 1,
+			s if s.contains(git2::Status::INDEX_TYPECHANGE) => ix += 1,
+			s if s.contains(git2::Status::INDEX_RENAMED) => ix += 1,
+
+			s if s.contains(git2::Status::IGNORED) => ignr += 1,
+			s if s.contains(git2::Status::CONFLICTED) => ups += 1,
+			_ => (),
+		};
+		// println!("{:?}", entry.status())
+	}
+	if ix > 0 || wt > 0 {
+		print!("\x1b[0;32m[{}, \x1b[0;31m{}] ", ix, wt);
+	}
+	if unt > 0 {
+		print!("\x1b[1;31m-{}-", unt)
+	}
+	if ups > 0 {
+		print!("\x1b[0;35mUps_{}", ups)
+	}
+	if ignr > 0 {
+		print!("\x1b[0;36m~{}~", ignr)
+	}
+}
+
+fn print_stash(mrepo: &mut Repository) {
 	let mut count = 0;
 	mrepo
 		.stash_foreach(|_, _, _| {
@@ -11,78 +80,9 @@ fn count_stash(mrepo: &mut Repository) -> usize {
 			true
 		})
 		.unwrap();
-	count
-}
 
-fn print_count(repo: &Repository, statuses: &git2::Statuses) {
-	#[derive(Default)]
-	#[allow(non_snake_case)]
-	struct Counts {
-		A: usize,
-		M: usize,
-		D: usize,
-		R: usize,
-		T: usize,
-	}
-	impl fmt::Display for Counts {
-		fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-			if self.A > 0 {
-				write!(f, "\x1b[31m{}\x1b[0m", self.A)?
-			}
-			if self.M > 0 {
-				write!(f, "{}", self.M)?
-			}
-			if self.D > 0 {
-				write!(f, "{}", self.D)?
-			}
-			if self.R > 0 {
-				write!(f, "{}", self.R)?
-			}
-			if self.T > 0 {
-				write!(f, "{}", self.T)?
-			}
-			return Ok(());
-		}
-	}
-
-	let mut ix = Counts {
-		..Default::default()
-	};
-	let mut wt = Counts {
-		..Default::default()
-	};
-	let mut ignor = 0;
-	let mut ups = 0;
-
-	for entry in statuses
-		.iter()
-		.filter(|e| e.status() != git2::Status::CURRENT)
-	{
-		match entry.status() {
-			git2::Status::INDEX_NEW => ix.A += 1,
-			git2::Status::INDEX_MODIFIED => ix.M += 1,
-			git2::Status::INDEX_DELETED => ix.D += 1,
-			git2::Status::INDEX_RENAMED => ix.R += 1,
-			git2::Status::INDEX_TYPECHANGE => ix.T += 1,
-
-			// status of the file in the working directory relative to the index
-			git2::Status::WT_NEW => wt.A += 1,
-			git2::Status::WT_MODIFIED => wt.M += 1,
-			git2::Status::WT_DELETED => wt.D += 1,
-			git2::Status::WT_RENAMED => wt.R += 1,
-			git2::Status::WT_TYPECHANGE => wt.T += 1,
-
-			//
-			git2::Status::IGNORED => ignor += 1,
-			_ => ups += 1,
-		};
-	}
-	print!("{} {} ~{}~", ix, wt, repo.submodules().unwrap().len());
-	if ups > 0 {
-		println!("Ups {}", ups)
-	}
-	if ignor > 0 {
-		println!("Ignor {}", ignor)
+	if count > 0 {
+		print!(" \x1b[33;1m{{{}}}", count)
 	}
 }
 
@@ -99,9 +99,11 @@ fn main() {
 				opts.include_untracked(true).recurse_untracked_dirs(true);
 
 				let statuses = repo.statuses(Some(&mut opts)).unwrap();
-				print_count(&repo, &statuses);
+				print_branch(repo);
+				print_count(&statuses);
 			}
-			count_stash(repo);
+			print_stash(repo);
+			print!("\x1b[0m")
 		}
 		_ => (),
 	}
