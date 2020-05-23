@@ -1,0 +1,8 @@
+[package]
+name = "gitprompt"
+version = "0.1.0"
+authors = ["Joker"]
+edition = "2018"
+
+[dependencies]
+git2 = "0.13"
