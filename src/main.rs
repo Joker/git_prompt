@@ -1,43 +1,56 @@
 #![deny(warnings)]
 
-use git2::{Repository, RepositoryState as rs, Status as st, StatusOptions};
+use git2::{DescribeOptions, Repository, RepositoryState as rs, Status as st, StatusOptions};
+
+macro_rules! unwrap_or_return {
+	( $e:expr ) => {
+		match $e {
+			Ok(x) => x,
+			Err(_) => return,
+			}
+	};
+}
+
+fn print_describe(repo: &Repository) {
+	let head = unwrap_or_return!(repo.head());
+	let oid = match head.target() {
+		Some(id) => id,
+		None => return,
+	};
+	let obj = unwrap_or_return!(repo.find_object(oid, None));
+
+	let d = obj.describe(
+		DescribeOptions::new()
+			.describe_all()
+			.show_commit_oid_as_fallback(true),
+	);
+	print!("{}", d.unwrap().format(None).unwrap_or("HEAD".to_string()));
+}
 
 fn print_branch(repo: &Repository) {
-	// {
-	// 	let head = repo.head().unwrap();
-	// 	let oid = head.target().unwrap();
-	// 	let commit = repo.find_commit(oid).unwrap();
-	// }
+	print!("\x1b[0;35m(");
 
-	let head = match repo.head() {
-		Ok(head) => Some(head),
-		Err(ref e) => {
-			println!("{:?}", e.code());
-			None
-		}
+	match repo.head() {
+		Ok(head) => match head.shorthand() {
+			Some("HEAD") => print_describe(repo),
+			Some(name) => print!("{}", name),
+			None => (),
+		},
+		Err(_) => (),
 	};
-	let shead = head.as_ref().and_then(|h| h.shorthand());
-
-	match shead {
-		Some(h) => println!("=== {} ===", h),
-		None => ()
-	}
-
-	print!("\x1b[0;35m({}", shead.unwrap_or("(no branch)"));
-
 	match repo.state() {
 		rs::Clean => (),
-		rs::Merge => print!("|merge"),
-		rs::Revert => print!("|revert"),
-		rs::RevertSequence => print!("|revert-s"),
-		rs::CherryPick => print!("|cherry-pick"),
-		rs::CherryPickSequence => print!("|cherry-pick-s"),
-		rs::Bisect => print!("|bisect"),
-		rs::Rebase => print!("|rebase"),
-		rs::RebaseInteractive => print!("|rebase-i"),
-		rs::RebaseMerge => print!("|rebase-m"),
-		rs::ApplyMailbox => print!("|am"),
-		rs::ApplyMailboxOrRebase => print!("|am-rebase"),
+		rs::Merge => print!("\x1b[0;36m merge"),
+		rs::Revert => print!("\x1b[0;36m revert"),
+		rs::RevertSequence => print!("\x1b[0;36m revert-s"),
+		rs::CherryPick => print!("\x1b[0;36m cherry-pick"),
+		rs::CherryPickSequence => print!("\x1b[0;36m cherry-pick-s"),
+		rs::Bisect => print!("\x1b[0;36m bisect"),
+		rs::Rebase => print!("\x1b[0;36m rebase"),
+		rs::RebaseInteractive => print!("\x1b[0;36m rebase-i"),
+		rs::RebaseMerge => print!("\x1b[0;36m rebase-m"),
+		rs::ApplyMailbox => print!("\x1b[0;36m am"),
+		rs::ApplyMailboxOrRebase => print!("\x1b[0;36m am-rebase"),
 	}
 	let sub = repo.submodules().unwrap().len();
 	if sub > 0 {
@@ -91,12 +104,10 @@ fn print_count(statuses: &git2::Statuses) {
 
 fn print_stash(mrepo: &mut Repository) {
 	let mut count = 0;
-	mrepo
-		.stash_foreach(|_, _, _| {
-			count += 1;
-			true
-		})
-		.unwrap();
+	unwrap_or_return!(mrepo.stash_foreach(|_, _, _| {
+		count += 1;
+		true
+	}));
 
 	if count > 0 {
 		print!("\x1b[33;1m{{{}}}", count)
@@ -104,18 +115,18 @@ fn print_stash(mrepo: &mut Repository) {
 }
 
 fn main() {
-	match &mut Repository::open("../lint_test") {
+	match &mut Repository::open(".") {
 		Ok(repo) => {
 			{
 				if repo.is_bare() {
-					println!("bare");
+					println!("(bare)");
 					return;
 				}
 				let mut opts = StatusOptions::new();
 				opts.include_ignored(false);
 				opts.include_untracked(true).recurse_untracked_dirs(true);
 
-				let statuses = repo.statuses(Some(&mut opts)).unwrap();
+				let statuses = unwrap_or_return!(repo.statuses(Some(&mut opts)));
 				print_branch(repo);
 				print_count(&statuses);
 			}
