@@ -19,12 +19,12 @@ fn print_describe(repo: &Repository) {
 	};
 	let obj = unwrap_or_return!(repo.find_object(oid, None));
 
-	let d = obj.describe(
+	let des = unwrap_or_return!(obj.describe(
 		DescribeOptions::new()
 			.describe_all()
 			.show_commit_oid_as_fallback(true),
-	);
-	print!("{}", d.unwrap().format(None).unwrap_or("HEAD".to_string()));
+	));
+	print!("{}", des.format(None).unwrap_or(" head ".to_string()));
 }
 
 fn print_branch(repo: &Repository) {
@@ -52,20 +52,22 @@ fn print_branch(repo: &Repository) {
 		rs::ApplyMailbox => print!("\x1b[0;36m am"),
 		rs::ApplyMailboxOrRebase => print!("\x1b[0;36m am-rebase"),
 	}
-	let sub = repo.submodules().unwrap().len();
+	let sub = match repo.submodules() {
+		Ok(vec) => vec.len(),
+		Err(_) => 0,
+	};
 	if sub > 0 {
-		print!("\x1b[0;33m sub-{}\x1b[0;35m) ", sub);
-	} else {
-		print!("\x1b[0;35m) ");
+		print!("\x1b[0;33m sub-{}", sub);
 	}
+	print!("\x1b[0;35m)");
 }
 
 fn print_count(statuses: &git2::Statuses) {
 	let mut ix = 0;
 	let mut wt = 0;
-	let mut ignr = 0;
 	let mut ups = 0;
 	let mut unt = 0;
+	let mut ignr = 0;
 
 	for entry in statuses.iter().filter(|e| e.status() != st::CURRENT) {
 		match entry.status() {
@@ -82,23 +84,25 @@ fn print_count(statuses: &git2::Statuses) {
 			s if s.contains(st::INDEX_TYPECHANGE) => ix += 1,
 			s if s.contains(st::INDEX_RENAMED) => ix += 1,
 
-			s if s.contains(st::IGNORED) => ignr += 1,
 			s if s.contains(st::CONFLICTED) => ups += 1,
+			s if s.contains(st::IGNORED) => ignr += 1,
 			_ => (),
 		};
 		// println!("{:?}", entry.status())
 	}
-	if ix > 0 || wt > 0 {
-		print!("\x1b[0;32m[{}, \x1b[0;31m{}] ", ix, wt);
+	match (ix, wt) {
+		(m, 0) => print!("\x1b[0;32m [{}]", m),
+		(0, n) => print!("\x1b[0;31m [{}]", n),
+		(m, n) => print!("\x1b[0;32m [{}, \x1b[0;31m{}]", m, n),
 	}
 	if ups > 0 {
-		print!("\x1b[0;36m~{}~ ", ups)
+		print!("\x1b[0;36m ~{}~", ups)
 	}
 	if unt > 0 {
-		print!("\x1b[1;31m-{}- ", unt)
+		print!("\x1b[1;31m -{}-", unt)
 	}
 	if ignr > 0 {
-		print!("\x1b[1;35mIgnor_{} ", ignr)
+		print!("\x1b[1;35m Ignor_{}", ignr)
 	}
 }
 
@@ -110,7 +114,7 @@ fn print_stash(mrepo: &mut Repository) {
 	}));
 
 	if count > 0 {
-		print!("\x1b[33;1m{{{}}}", count)
+		print!("\x1b[33;1m {{{}}}", count)
 	}
 }
 
@@ -119,7 +123,7 @@ fn main() {
 		Ok(repo) => {
 			{
 				if repo.is_bare() {
-					println!("(bare)");
+					println!("( bare )");
 					return;
 				}
 				let mut opts = StatusOptions::new();
