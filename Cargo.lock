@@ -43,7 +43,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "gitprompt"
+name = "git_prompt"
 version = "0.1.0"
 dependencies = [
  "git2",

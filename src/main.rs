@@ -11,6 +11,7 @@ macro_rules! unwrap_or_return {
 	};
 }
 
+// git describe --all HEAD
 fn print_describe(repo: &Repository) {
 	let head = unwrap_or_return!(repo.head());
 	let oid = match head.target() {
@@ -66,31 +67,35 @@ fn print_count(statuses: &git2::Statuses) {
 	let mut ix = 0;
 	let mut wt = 0;
 	let mut ups = 0;
-	let mut unt = 0;
-	let mut ignr = 0;
+	let mut ignored = 0;
+	let mut untracked = 0;
 
 	for entry in statuses.iter().filter(|e| e.status() != st::CURRENT) {
 		match entry.status() {
-			s if s.contains(st::WT_NEW) => unt += 1,
-
+			s if s.contains(st::WT_NEW) => untracked += 1,
+			s if s.contains(st::IGNORED) => ignored += 1,
+			s if s.contains(st::CONFLICTED) => ups += 1,
+			_ => (),
+		};
+		match entry.status() {
 			s if s.contains(st::WT_MODIFIED) => wt += 1,
 			s if s.contains(st::WT_DELETED) => wt += 1,
-			s if s.contains(st::WT_TYPECHANGE) => wt += 1,
 			s if s.contains(st::WT_RENAMED) => wt += 1,
-
+			s if s.contains(st::WT_TYPECHANGE) => wt += 1,
+			_ => (),
+		};
+		match entry.status() {
 			s if s.contains(st::INDEX_NEW) => ix += 1,
 			s if s.contains(st::INDEX_MODIFIED) => ix += 1,
 			s if s.contains(st::INDEX_DELETED) => ix += 1,
-			s if s.contains(st::INDEX_TYPECHANGE) => ix += 1,
 			s if s.contains(st::INDEX_RENAMED) => ix += 1,
-
-			s if s.contains(st::CONFLICTED) => ups += 1,
-			s if s.contains(st::IGNORED) => ignr += 1,
+			s if s.contains(st::INDEX_TYPECHANGE) => ix += 1,
 			_ => (),
 		};
 		// println!("{:?}", entry.status())
 	}
 	match (ix, wt) {
+		(0, 0) => (),
 		(m, 0) => print!("\x1b[0;32m [{}]", m),
 		(0, n) => print!("\x1b[0;31m [{}]", n),
 		(m, n) => print!("\x1b[0;32m [{}, \x1b[0;31m{}]", m, n),
@@ -98,11 +103,11 @@ fn print_count(statuses: &git2::Statuses) {
 	if ups > 0 {
 		print!("\x1b[0;36m ~{}~", ups)
 	}
-	if unt > 0 {
-		print!("\x1b[1;31m -{}-", unt)
+	if untracked > 0 {
+		print!("\x1b[1;31m -{}-", untracked)
 	}
-	if ignr > 0 {
-		print!("\x1b[1;35m Ignor_{}", ignr)
+	if ignored > 0 {
+		print!("\x1b[1;35m _{}_", ignored)
 	}
 }
 
@@ -123,7 +128,7 @@ fn main() {
 		Ok(repo) => {
 			{
 				if repo.is_bare() {
-					println!("( bare )");
+					print!("( bare )");
 					return;
 				}
 				let mut opts = StatusOptions::new();
