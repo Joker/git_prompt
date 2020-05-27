@@ -6,17 +6,17 @@ macro_rules! unwrap_or_return {
 	( $e:expr ) => {
 		match $e {
 			Ok(x) => x,
-			Err(_) => return,
+			Err(_) => return String::new(),
 			}
 	};
 }
 
 // git describe --all HEAD
-fn print_describe(repo: &Repository) {
+fn print_describe(repo: &Repository) -> String {
 	let head = unwrap_or_return!(repo.head());
 	let oid = match head.target() {
 		Some(id) => id,
-		None => return,
+		None => return String::new(),
 	};
 	let obj = unwrap_or_return!(repo.find_object(oid, None));
 
@@ -25,45 +25,45 @@ fn print_describe(repo: &Repository) {
 			.describe_all()
 			.show_commit_oid_as_fallback(true),
 	));
-	print!("{}", des.format(None).unwrap_or(" head ".to_string()));
+	des.format(None).unwrap_or(" head ".to_string())
 }
 
-fn print_branch(repo: &Repository) {
-	print!("\x1b[0;35m(");
-
+fn print_branch(repo: &Repository) -> String {
+	let mut out = String::from("\x1b[0;35m(");
 	match repo.head() {
 		Ok(head) => match head.shorthand() {
-			Some("HEAD") => print_describe(repo),
-			Some(name) => print!("{}", name),
+			Some("HEAD") => out.push_str(&print_describe(repo)),
+			Some(name) => out.push_str(name),
 			None => (),
 		},
 		Err(_) => (),
 	};
 	match repo.state() {
 		rs::Clean => (),
-		rs::Merge => print!("\x1b[0;36m merge"),
-		rs::Revert => print!("\x1b[0;36m revert"),
-		rs::RevertSequence => print!("\x1b[0;36m revert-s"),
-		rs::CherryPick => print!("\x1b[0;36m cherry-pick"),
-		rs::CherryPickSequence => print!("\x1b[0;36m cherry-pick-s"),
-		rs::Bisect => print!("\x1b[0;36m bisect"),
-		rs::Rebase => print!("\x1b[0;36m rebase"),
-		rs::RebaseInteractive => print!("\x1b[0;36m rebase-i"),
-		rs::RebaseMerge => print!("\x1b[0;36m rebase-m"),
-		rs::ApplyMailbox => print!("\x1b[0;36m am"),
-		rs::ApplyMailboxOrRebase => print!("\x1b[0;36m am-rebase"),
-	}
+		rs::Merge => out.push_str("\x1b[0;36m merge"),
+		rs::Revert => out.push_str("\x1b[0;36m revert"),
+		rs::RevertSequence => out.push_str("\x1b[0;36m revert-s"),
+		rs::CherryPick => out.push_str("\x1b[0;36m cherry-pick"),
+		rs::CherryPickSequence => out.push_str("\x1b[0;36m cherry-pick-s"),
+		rs::Bisect => out.push_str("\x1b[0;36m bisect"),
+		rs::Rebase => out.push_str("\x1b[0;36m rebase"),
+		rs::RebaseInteractive => out.push_str("\x1b[0;36m rebase-i"),
+		rs::RebaseMerge => out.push_str("\x1b[0;36m rebase-m"),
+		rs::ApplyMailbox => out.push_str("\x1b[0;36m am"),
+		rs::ApplyMailboxOrRebase => out.push_str("\x1b[0;36m am-rebase"),
+	};
 	let sub = match repo.submodules() {
 		Ok(vec) => vec.len(),
 		Err(_) => 0,
 	};
 	if sub > 0 {
-		print!("\x1b[0;33m sub-{}", sub);
+		out.push_str(&format!("\x1b[0;33m sub-{}", sub))
 	}
-	print!("\x1b[0;35m)");
+	out.push_str("\x1b[0;35m)");
+	out
 }
 
-fn print_count(statuses: &git2::Statuses) {
+fn print_count(statuses: &git2::Statuses) -> String {
 	let mut ix = 0;
 	let mut wt = 0;
 	let mut ups = 0;
@@ -94,54 +94,60 @@ fn print_count(statuses: &git2::Statuses) {
 		};
 		// println!("{:?}", entry.status())
 	}
+	let mut out = String::new();
 	match (ix, wt) {
 		(0, 0) => (),
-		(m, 0) => print!("\x1b[0;32m [{}]", m),
-		(0, n) => print!("\x1b[0;31m [{}]", n),
-		(m, n) => print!("\x1b[0;32m [{}, \x1b[0;31m{}]", m, n),
+		(m, 0) => out.push_str(&format!("\x1b[0;32m [{}]", m)),
+		(0, n) => out.push_str(&format!("\x1b[0;31m [{}]", n)),
+		(m, n) => out.push_str(&format!("\x1b[0;32m [{}, \x1b[0;31m{}]", m, n)),
 	}
 	if ups > 0 {
-		print!("\x1b[0;36m ~{}~", ups)
+		out.push_str(&format!("\x1b[0;36m ~{}~", ups))
 	}
 	if untracked > 0 {
-		print!("\x1b[1;31m -{}-", untracked)
+		out.push_str(&format!("\x1b[1;31m -{}-", untracked))
 	}
 	if ignored > 0 {
-		print!("\x1b[1;35m _{}_", ignored)
+		out.push_str(&format!("\x1b[1;35m _{}_", ignored))
 	}
+	out
 }
 
-fn print_stash(mrepo: &mut Repository) {
+fn print_stash(mrepo: &mut Repository) -> String {
 	let mut count = 0;
 	unwrap_or_return!(mrepo.stash_foreach(|_, _, _| {
 		count += 1;
 		true
 	}));
 
+	let mut out = String::new();
 	if count > 0 {
-		print!("\x1b[33;1m {{{}}}", count)
+		out.push_str(&format!("\x1b[33;1m {{{}}}", count))
 	}
+	out
 }
 
-pub fn prompt() {
+pub fn prompt() -> String {
+	let mut out = String::new();
 	match &mut Repository::discover(".") {
 		Ok(repo) => {
 			{
 				if repo.is_bare() {
-					print!("( bare )");
-					return;
+					out.push_str("( bare )");
+					return out;
 				}
 				let mut opts = StatusOptions::new();
 				opts.include_ignored(false);
 				opts.include_untracked(true).recurse_untracked_dirs(true);
 
 				let statuses = unwrap_or_return!(repo.statuses(Some(&mut opts)));
-				print_branch(repo);
-				print_count(&statuses);
+				out.push_str(&print_branch(repo));
+				out.push_str(&print_count(&statuses));
 			}
-			print_stash(repo);
-			print!("\x1b[0m");
+			out.push_str(&print_stash(repo));
 		}
 		_ => (),
 	}
+	out.push_str("\x1b[0m");
+	out
 }

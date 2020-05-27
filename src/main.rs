@@ -3,11 +3,17 @@ mod git;
 mod line;
 
 fn main() {
-	let args: Vec<String> = env::args().collect();
+	let arg = env::args().skip(1).next();
 
-	if args.len() > 1 && args[1] == "zsh" {
-		line::ps1();
-	} else {
-		git::prompt();
+	match arg {
+		Some(sh) => {
+			if sh == "zsh" {
+				print!("{}", line::zsh_ps1(git::prompt()))
+			}
+			if sh == "bash" {
+				print!("{}", line::bash_ps1(git::prompt()))
+			}
+		}
+		None => print!("{}", git::prompt()),
 	}
 }
