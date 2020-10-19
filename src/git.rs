@@ -29,7 +29,7 @@ fn print_describe(repo: &Repository) -> String {
 }
 
 fn print_branch(repo: &Repository) -> String {
-	let mut out = String::from("\x1b[0;35m(");
+	let mut out = String::from("%{\x1b[0;35m%}(");
 	match repo.head() {
 		Ok(head) => match head.shorthand() {
 			Some("HEAD") => out.push_str(&print_describe(repo)),
@@ -40,26 +40,26 @@ fn print_branch(repo: &Repository) -> String {
 	};
 	match repo.state() {
 		rs::Clean => (),
-		rs::Merge => out.push_str("\x1b[0;36m merge"),
-		rs::Revert => out.push_str("\x1b[0;36m revert"),
-		rs::RevertSequence => out.push_str("\x1b[0;36m revert-s"),
-		rs::CherryPick => out.push_str("\x1b[0;36m cherry-pick"),
-		rs::CherryPickSequence => out.push_str("\x1b[0;36m cherry-pick-s"),
-		rs::Bisect => out.push_str("\x1b[0;36m bisect"),
-		rs::Rebase => out.push_str("\x1b[0;36m rebase"),
-		rs::RebaseInteractive => out.push_str("\x1b[0;36m rebase-i"),
-		rs::RebaseMerge => out.push_str("\x1b[0;36m rebase-m"),
-		rs::ApplyMailbox => out.push_str("\x1b[0;36m am"),
-		rs::ApplyMailboxOrRebase => out.push_str("\x1b[0;36m am-rebase"),
+		rs::Merge => out.push_str("%{\x1b[0;36m%} merge"),
+		rs::Revert => out.push_str("%{\x1b[0;36m%} revert"),
+		rs::RevertSequence => out.push_str("%{\x1b[0;36m%} revert-s"),
+		rs::CherryPick => out.push_str("%{\x1b[0;36m%} cherry-pick"),
+		rs::CherryPickSequence => out.push_str("%{\x1b[0;36m%} cherry-pick-s"),
+		rs::Bisect => out.push_str("%{\x1b[0;36m%} bisect"),
+		rs::Rebase => out.push_str("%{\x1b[0;36m%} rebase"),
+		rs::RebaseInteractive => out.push_str("%{\x1b[0;36m%} rebase-i"),
+		rs::RebaseMerge => out.push_str("%{\x1b[0;36m%} rebase-m"),
+		rs::ApplyMailbox => out.push_str("%{\x1b[0;36m%} am"),
+		rs::ApplyMailboxOrRebase => out.push_str("%{\x1b[0;36m%} am-rebase"),
 	};
 	let sub = match repo.submodules() {
 		Ok(vec) => vec.len(),
 		Err(_) => 0,
 	};
 	if sub > 0 {
-		out.push_str(&format!("\x1b[0;33m sub-{}", sub))
+		out.push_str(&format!("%{{\x1b[0;33m%}} sub-{}", sub))
 	}
-	out.push_str("\x1b[0;35m)");
+	out.push_str("%{\x1b[0;35m%})");
 	out
 }
 
@@ -97,18 +97,18 @@ fn print_count(statuses: &git2::Statuses) -> String {
 	let mut out = String::new();
 	match (ix, wt) {
 		(0, 0) => (),
-		(m, 0) => out.push_str(&format!("\x1b[0;32m [{}]", m)),
-		(0, n) => out.push_str(&format!("\x1b[0;31m [{}]", n)),
-		(m, n) => out.push_str(&format!("\x1b[0;32m [{}, \x1b[0;31m{}]", m, n)),
+		(m, 0) => out.push_str(&format!("%{{\x1b[0;32m%}} [{}]", m)),
+		(0, n) => out.push_str(&format!("%{{\x1b[0;31m%}} [{}]", n)),
+		(m, n) => out.push_str(&format!("%{{\x1b[0;32m%}} [{}, \x1b[0;31m{}]", m, n)),
 	}
 	if ups > 0 {
-		out.push_str(&format!("\x1b[0;36m ~{}~", ups))
+		out.push_str(&format!("%{{\x1b[0;36m%}} ~{}~", ups))
 	}
 	if untracked > 0 {
-		out.push_str(&format!("\x1b[1;31m -{}-", untracked))
+		out.push_str(&format!("%{{\x1b[1;31m%}} -{}-", untracked))
 	}
 	if ignored > 0 {
-		out.push_str(&format!("\x1b[1;35m _{}_", ignored))
+		out.push_str(&format!("%{{\x1b[1;35m%}} _{}_", ignored))
 	}
 	out
 }
@@ -122,7 +122,7 @@ fn print_stash(mrepo: &mut Repository) -> String {
 
 	let mut out = String::new();
 	if count > 0 {
-		out.push_str(&format!("\x1b[33;1m {{{}}}", count))
+		out.push_str(&format!("%{{\x1b[33;1m%}} {{{}}}", count))
 	}
 	out
 }
@@ -148,6 +148,6 @@ pub fn prompt() -> String {
 		}
 		_ => (),
 	}
-	out.push_str("\x1b[0m");
+	out.push_str("%{\x1b[0m%}");
 	out
 }
