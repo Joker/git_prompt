@@ -1,8 +1,8 @@
 [package]
 name = "git_prompt"
-version = "0.1.0"
+version = "1.0.0"
 authors = ["Joker"]
 edition = "2018"
 
 [dependencies]
-git2 = "0.13"
+git2 = "0.13.12"
