@@ -13,7 +13,8 @@ pub fn zsh_ps1(git: String) -> String {
 
 pub fn bash_ps1(git: String) -> String {
 	format!(
-		"{3}┌─{1}\\u@\\h {2}\\W {0}{3}\n└ >_{4} ",
+		// "{3}┌─{1}\\u@\\h {2}\\W {0}{3}\n└ >_{4} ",
+		"{3}┌─{1}\\u {2}\\W {0}{3}\n└ >_{4} ",
 		git, GREEN_L, BLUE_L, YELLOW, RESET
 	)
 	.replace("%{", "")

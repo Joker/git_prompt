@@ -1,6 +1,9 @@
 #![deny(warnings)]
 
-use git2::{DescribeOptions, Repository, RepositoryState as rs, Status as st, StatusOptions};
+use git2::{
+	DescribeOptions, ErrorCode::UnbornBranch, Repository, RepositoryState as rs, Status as st,
+	StatusOptions,
+};
 
 macro_rules! unwrap_or_return {
 	( $e:expr ) => {
@@ -36,7 +39,10 @@ fn print_branch(repo: &Repository) -> String {
 			Some(name) => out.push_str(name),
 			None => (),
 		},
-		Err(_) => (),
+		Err(e) => match e.code() {
+			UnbornBranch => out.push_str(" %{\x1b[0;36m%}no commits "),
+			_ => (),
+		},
 	};
 	match repo.state() {
 		rs::Clean => (),
@@ -72,24 +78,24 @@ fn print_count(statuses: &git2::Statuses) -> String {
 
 	for entry in statuses.iter().filter(|e| e.status() != st::CURRENT) {
 		match entry.status() {
-			s if s.contains(st::WT_NEW) => untracked += 1,
-			s if s.contains(st::IGNORED) => ignored += 1,
-			s if s.contains(st::CONFLICTED) => ups += 1,
+			s if s.is_wt_new() => untracked += 1,
+			s if s.is_ignored() => ignored += 1,
+			s if s.is_conflicted() => ups += 1,
 			_ => (),
 		};
 		match entry.status() {
-			s if s.contains(st::WT_MODIFIED) => wt += 1,
-			s if s.contains(st::WT_DELETED) => wt += 1,
-			s if s.contains(st::WT_RENAMED) => wt += 1,
-			s if s.contains(st::WT_TYPECHANGE) => wt += 1,
+			s if s.is_wt_modified() => wt += 1,
+			s if s.is_wt_deleted() => wt += 1,
+			s if s.is_wt_renamed() => wt += 1,
+			s if s.is_wt_typechange() => wt += 1,
 			_ => (),
 		};
 		match entry.status() {
-			s if s.contains(st::INDEX_NEW) => ix += 1,
-			s if s.contains(st::INDEX_MODIFIED) => ix += 1,
-			s if s.contains(st::INDEX_DELETED) => ix += 1,
-			s if s.contains(st::INDEX_RENAMED) => ix += 1,
-			s if s.contains(st::INDEX_TYPECHANGE) => ix += 1,
+			s if s.is_index_new() => ix += 1,
+			s if s.is_index_modified() => ix += 1,
+			s if s.is_index_deleted() => ix += 1,
+			s if s.is_index_renamed() => ix += 1,
+			s if s.is_index_typechange() => ix += 1,
 			_ => (),
 		};
 		// println!("{:?}", entry.status())
@@ -136,9 +142,12 @@ pub fn prompt() -> String {
 					out.push_str("( bare )");
 					return out;
 				}
+
 				let mut opts = StatusOptions::new();
-				opts.include_ignored(false);
-				opts.include_untracked(true).recurse_untracked_dirs(true);
+				opts.include_untracked(true)
+					.renames_from_rewrites(true)
+					.renames_head_to_index(true)
+					.include_unmodified(true);
 
 				let statuses = unwrap_or_return!(repo.statuses(Some(&mut opts)));
 				out.push_str(&print_branch(repo));
