@@ -2,7 +2,7 @@
 
 Git repository information inside a shell prompt.
 
-![git_prompt](https://repository-images.githubusercontent.com/266870139/78024e00-1251-11eb-9ee9-7809becffeb6)
+![git_prompt](https://repository-images.githubusercontent.com/266870139/b26c1300-2903-11eb-94cc-c2d2a5cc6592)
 
 ## Installation
 
