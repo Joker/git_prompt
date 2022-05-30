@@ -1,16 +1,13 @@
 #![deny(warnings)]
 
-use git2::{
-	DescribeOptions, ErrorCode::UnbornBranch, Repository, RepositoryState as rs, Status as st,
-	StatusOptions,
-};
+use git2::{DescribeOptions, Repository, RepositoryState as rs, Status as st, StatusOptions};
 
 macro_rules! unwrap_or_return {
 	( $e:expr ) => {
 		match $e {
 			Ok(x) => x,
 			Err(_) => return String::new(),
-			}
+		}
 	};
 }
 
@@ -33,17 +30,19 @@ fn print_describe(repo: &Repository) -> String {
 
 fn print_branch(repo: &Repository) -> String {
 	let mut out = String::from("%{\x1b[0;35m%}(");
-	match repo.head() {
-		Ok(head) => match head.shorthand() {
+	if repo.is_shallow() {
+		out.push_str("%{\x1b[0;32m%}shallow %{\x1b[0;35m%}")
+	}
+	if repo.is_worktree() {
+		out.push_str("%{\x1b[0;32m%}worktree %{\x1b[0;35m%}")
+	}
+	if let Ok(head) = repo.head() {
+		match head.shorthand() {
 			Some("HEAD") => out.push_str(&print_describe(repo)),
 			Some(name) => out.push_str(name),
 			None => (),
-		},
-		Err(e) => match e.code() {
-			UnbornBranch => out.push_str(" %{\x1b[0;36m%}no commits "),
-			_ => (),
-		},
-	};
+		}
+	}
 	match repo.state() {
 		rs::Clean => (),
 		rs::Merge => out.push_str("%{\x1b[0;36m%} merge"),
@@ -53,17 +52,15 @@ fn print_branch(repo: &Repository) -> String {
 		rs::CherryPickSequence => out.push_str("%{\x1b[0;36m%} cherry-pick-s"),
 		rs::Bisect => out.push_str("%{\x1b[0;36m%} bisect"),
 		rs::Rebase => out.push_str("%{\x1b[0;36m%} rebase"),
-		rs::RebaseInteractive => out.push_str("%{\x1b[0;36m%} rebase-i"),
 		rs::RebaseMerge => out.push_str("%{\x1b[0;36m%} rebase-m"),
+		rs::RebaseInteractive => out.push_str("%{\x1b[0;36m%} rebase-i"),
 		rs::ApplyMailbox => out.push_str("%{\x1b[0;36m%} am"),
 		rs::ApplyMailboxOrRebase => out.push_str("%{\x1b[0;36m%} am-rebase"),
-	};
-	let sub = match repo.submodules() {
-		Ok(vec) => vec.len(),
-		Err(_) => 0,
-	};
-	if sub > 0 {
-		out.push_str(&format!("%{{\x1b[0;33m%}} sub-{}", sub))
+	}
+	if let Ok(sub) = repo.submodules() {
+		if sub.len() > 0 {
+			out.push_str(&format!("%{{\x1b[0;33m%}} submodule-{}", sub.len()))
+		}
 	}
 	out.push_str("%{\x1b[0;35m%})");
 	out
@@ -105,7 +102,7 @@ fn print_count(statuses: &git2::Statuses) -> String {
 		(0, 0) => (),
 		(m, 0) => out.push_str(&format!("%{{\x1b[0;32m%}} [{}]", m)),
 		(0, n) => out.push_str(&format!("%{{\x1b[0;31m%}} [{}]", n)),
-		(m, n) => out.push_str(&format!("%{{\x1b[0;32m%}} [{}, \x1b[0;31m{}]", m, n)),
+		(m, n) => out.push_str(&format!("%{{\x1b[0;32m%}} [{}, %{{\x1b[0;31m%}}{}]", m, n)),
 	}
 	if ups > 0 {
 		out.push_str(&format!("%{{\x1b[0;36m%}} ~{}~", ups))
@@ -135,27 +132,31 @@ fn print_stash(mrepo: &mut Repository) -> String {
 
 pub fn prompt() -> String {
 	let mut out = String::new();
-	match &mut Repository::discover(".") {
-		Ok(repo) => {
-			{
-				if repo.is_bare() {
-					out.push_str("( bare )");
-					return out;
-				}
-
-				let mut opts = StatusOptions::new();
-				opts.include_untracked(true)
-					.renames_from_rewrites(true)
-					.renames_head_to_index(true)
-					.include_unmodified(true);
-
-				let statuses = unwrap_or_return!(repo.statuses(Some(&mut opts)));
-				out.push_str(&print_branch(repo));
-				out.push_str(&print_count(&statuses));
-			}
-			out.push_str(&print_stash(repo));
+	if let Ok(repo) = &mut Repository::discover(".") {
+		if repo.is_bare() {
+			out.push_str("( git:bare )");
+			return out;
 		}
-		_ => (),
+
+		if let Ok(empty) = repo.is_empty() {
+			if empty {
+				out.push_str("%{\x1b[0;35m%}( %{\x1b[0;36m%}0 commits %{\x1b[0;35m%})%{\x1b[0m%}");
+				return out;
+			}
+		}
+		//
+		{
+			let mut opts = StatusOptions::new();
+			opts.include_untracked(true)
+				.renames_from_rewrites(true)
+				.renames_head_to_index(true)
+				.include_unmodified(true);
+
+			let statuses = unwrap_or_return!(repo.statuses(Some(&mut opts)));
+			out.push_str(&print_branch(repo));
+			out.push_str(&print_count(&statuses));
+		}
+		out.push_str(&print_stash(repo));
 	}
 	out.push_str("%{\x1b[0m%}");
 	out

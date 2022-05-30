@@ -6,7 +6,11 @@ Git repository information inside a shell prompt.
 
 ## Installation
 
+```console
+cargo install --git https://github.com/Joker/git_prompt
 ```
+or
+```console
 make install
 ```
 
