@@ -1,4 +1,6 @@
+use git::prompt;
 use std::env;
+
 mod git;
 mod line;
 
@@ -10,17 +12,17 @@ fn main() {
 		2 => {
 			let cmd = &args[1];
 			match &cmd[..] {
-				"zsh" => print!("{}", git::prompt()),
-				_ => print!("{}", git::prompt().replace("%{", "").replace("%}", "")),
+				"zsh" => print!("{}", prompt()),
+				_ => print!("{}", prompt().replace("%{", "").replace("%}", "")),
 			}
 		}
 		3 => {
 			let cmd = &args[1];
 			match &cmd[..] {
-				"zsh" => print!("{}", line::zsh_ps1(git::prompt())),
-				_ => print!("{}", line::bash_ps1(git::prompt())),
+				"zsh" => print!("{}", line::zsh_ps1(prompt())),
+				_ => print!("{}", line::bash_ps1(prompt())),
 			}
 		}
-		_ => print!("{}", git::prompt().replace("%{", "").replace("%}", "")),
+		_ => print!("{}", prompt().replace("%{", "").replace("%}", "")),
 	}
 }

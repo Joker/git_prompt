@@ -1,8 +1,18 @@
 [package]
 name = "git_prompt"
-version = "1.1.0"
-authors = ["Joker"]
+version = "1.1.1"
+authors = ["Joker <nice.way@live.com>"]
+description = "Git repository information inside a shell prompt."
+repository = "https://github.com/Joker/git_prompt"
+license = "MIT"
+keywords = ["git", "prompt", "terminal", "zsh", "bash", "color"]
+exclude = ["target", "Cargo.lock"]
 edition = "2021"
 
 [dependencies]
-git2 = "0.14.4"
+git2 = "0.16.1"
+
+[profile.release]
+strip = true
+panic = "abort"
+lto = true
