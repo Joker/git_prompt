@@ -1,4 +1,3 @@
-#![deny(warnings)]
 use git2::{DescribeOptions, Repository, RepositoryState as rs, Status as st, StatusOptions};
 
 pub static RED: &str = "%{\x1b[0;31m%}";
@@ -7,7 +6,7 @@ pub static GREEN: &str = "%{\x1b[0;32m%}";
 pub static GREEN_L: &str = "%{\x1b[38;5;28m%}";
 pub static BLUE_L: &str = "%{\x1b[1;94m%}";
 pub static YELLOW: &str = "%{\x1b[0;33m%}";
-pub static YELLOW_L: &str = "%{\x1b[33;1m%}";
+pub static YELLOW_L: &str = "%{\x1b[1;33m%}";
 pub static MAGENTA: &str = "%{\x1b[0;35m%}";
 pub static MAGENTA_L: &str = "%{\x1b[1;35m%}";
 pub static CYAN: &str = "%{\x1b[0;36m%}";
@@ -40,12 +39,12 @@ fn print_describe(repo: &Repository) -> String {
 }
 
 fn print_branch(repo: &Repository) -> String {
-	let mut out = String::from(&format!("{}(", MAGENTA));
+	let mut out = String::from(&format!("{MAGENTA}("));
 	if repo.is_shallow() {
-		out.push_str(&format!("{}shallow {}", GREEN, MAGENTA))
+		out.push_str(&format!("{GREEN}shallow {MAGENTA}"))
 	}
 	if repo.is_worktree() {
-		out.push_str(&format!("{}worktree {}", GREEN, MAGENTA))
+		out.push_str(&format!("{GREEN}worktree {MAGENTA}"))
 	}
 	if let Ok(head) = repo.head() {
 		match head.shorthand() {
@@ -56,24 +55,24 @@ fn print_branch(repo: &Repository) -> String {
 	}
 	match repo.state() {
 		rs::Clean => (),
-		rs::Merge => out.push_str(&format!("{} merge", CYAN)),
-		rs::Revert => out.push_str(&format!("{} revert", CYAN)),
-		rs::RevertSequence => out.push_str(&format!("{} revert-sq", CYAN)),
-		rs::CherryPick => out.push_str(&format!("{} cherry-pick", CYAN)),
-		rs::CherryPickSequence => out.push_str(&format!("{} cherry-pick-sq", CYAN)),
-		rs::Bisect => out.push_str(&format!("{} bisect", CYAN)),
-		rs::Rebase => out.push_str(&format!("{} rebase", CYAN)),
-		rs::RebaseMerge => out.push_str(&format!("{} rebase-m", CYAN)),
-		rs::RebaseInteractive => out.push_str(&format!("{} rebase-i", CYAN)),
-		rs::ApplyMailbox => out.push_str(&format!("{} am", CYAN)),
-		rs::ApplyMailboxOrRebase => out.push_str(&format!("{} am-rebase", CYAN)),
+		rs::Merge => out.push_str(&format!("{CYAN} merge")),
+		rs::Revert => out.push_str(&format!("{CYAN} revert")),
+		rs::RevertSequence => out.push_str(&format!("{CYAN} revert-sq")),
+		rs::CherryPick => out.push_str(&format!("{CYAN} cherry-pick")),
+		rs::CherryPickSequence => out.push_str(&format!("{CYAN} cherry-pick-sq")),
+		rs::Bisect => out.push_str(&format!("{CYAN} bisect")),
+		rs::Rebase => out.push_str(&format!("{CYAN} rebase")),
+		rs::RebaseMerge => out.push_str(&format!("{CYAN} rebase-m")),
+		rs::RebaseInteractive => out.push_str(&format!("{CYAN} rebase-i")),
+		rs::ApplyMailbox => out.push_str(&format!("{CYAN} am")),
+		rs::ApplyMailboxOrRebase => out.push_str(&format!("{CYAN} am-rebase")),
 	}
 	if let Ok(sub) = repo.submodules() {
-		if sub.len() > 0 {
-			out.push_str(&format!("{} submodule-{}", YELLOW, sub.len()))
+		if !sub.is_empty() {
+			out.push_str(&format!("{YELLOW} submodule-{}", sub.len()))
 		}
 	}
-	out.push_str(&format!("{})", MAGENTA));
+	out.push_str(&format!("{MAGENTA})"));
 	out
 }
 
@@ -111,18 +110,18 @@ fn print_count(statuses: &git2::Statuses) -> String {
 	let mut out = String::new();
 	match (ix, wt) {
 		(0, 0) => (),
-		(m, 0) => out.push_str(&format!("{} [{}]", GREEN, m)),
-		(0, n) => out.push_str(&format!("{} [{}]", RED, n)),
-		(m, n) => out.push_str(&format!("{} [{}, {}{}]", GREEN, m, RED, n)),
+		(m, 0) => out.push_str(&format!("{GREEN} [{m}]")),
+		(0, n) => out.push_str(&format!("{RED} [{n}]")),
+		(m, n) => out.push_str(&format!("{GREEN} [{m}, {RED}{n}]")),
 	}
 	if ups > 0 {
-		out.push_str(&format!("{} ~{}~", CYAN, ups))
+		out.push_str(&format!("{CYAN} ~{ups}~"))
 	}
 	if untracked > 0 {
-		out.push_str(&format!("{} -{}-", RED_L, untracked))
+		out.push_str(&format!("{RED_L} -{untracked}-"))
 	}
 	if ignored > 0 {
-		out.push_str(&format!("{} _{}_", MAGENTA_L, ignored))
+		out.push_str(&format!("{MAGENTA_L} _{ignored}_"))
 	}
 	out
 }
@@ -136,7 +135,7 @@ fn print_stash(mrepo: &mut Repository) -> String {
 
 	let mut out = String::new();
 	if count > 0 {
-		out.push_str(&format!("{} {{{}}}", YELLOW_L, count))
+		out.push_str(&format!("{YELLOW_L} {{{count}}}"))
 	}
 	out
 }
@@ -151,14 +150,11 @@ pub fn prompt() -> String {
 
 		if let Ok(empty) = repo.is_empty() {
 			if empty {
-				out.push_str(&format!(
-					"{}({} 0 commits {}){}",
-					MAGENTA, CYAN, MAGENTA, RESET
-				));
+				out.push_str(&format!("{MAGENTA}({CYAN} 0 commits {MAGENTA}){RESET}",));
 				return out;
 			}
 		}
-		//
+
 		{
 			let mut opts = StatusOptions::new();
 			opts.include_untracked(true)
