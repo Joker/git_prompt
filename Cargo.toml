@@ -12,6 +12,10 @@ edition = "2021"
 [dependencies]
 git2 = "0.16.1"
 
+[features]
+default = []
+bash = []
+
 [profile.release]
 strip = true
 panic = "abort"
