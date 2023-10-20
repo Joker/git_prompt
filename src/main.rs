@@ -16,8 +16,9 @@ fn main() {
 	match args.len() {
 		2 => match args[1].as_str() {
 			"init" => print!("{}", PROMPT),
-			_ => print!("{}", ps1(git::prompt())),
+			"ps1" => print!("{}", ps1(git::prompt())),
+			_ => print!("{}", git::prompt()),
 		},
-		_ => print!("{}", git::prompt()),
+		_ => print!("{}", git::prompt().replace("%{", "").replace("%}", "")),
 	}
 }

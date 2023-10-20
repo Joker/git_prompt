@@ -19,7 +19,7 @@ make install
 `~/.zshrc`
 ```
 setopt PROMPT_SUBST
-PROMPT=$'%n@%m %1~ \$(git_prompt zsh) $ '
+PROMPT=$'%n@%m %2~ \$(git_prompt zsh) $ '
 ```
 
 ### bash
